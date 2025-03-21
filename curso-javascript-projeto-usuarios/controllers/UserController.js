@@ -26,7 +26,7 @@ class UserController{
                 <td>${dataUser.name}</td>
                 <td>${dataUser.email}</td>
                 <td>${(dataUser.admin) ? 'Yes': 'No'}</td>
-                <td>${dataUser.birth}</td>
+                <td>${Utils.dateFormat(dataUser.register)}</td>
                 <td>
                     <button type="button" class="btn btn-primary btn-xs btn-flat">Editar</button>
                     <button type="button" class="btn btn-danger btn-xs btn-flat">Excluir</button>
@@ -34,6 +34,17 @@ class UserController{
             `;
         
             this.tableEl.appendChild(tr);
+            this.updateCount();
+    }
+
+    updateCount(){
+        
+        let numberUsers = 0;
+        let numberAdmin = 0; 
+
+        [...this.tableEl.children].forEach(tr =>{
+            
+        });
     }
 
     onSubmit(){
@@ -49,14 +60,19 @@ class UserController{
         this.formEl.addEventListener("submit", (event)=>{
             
             event.preventDefault();
+
+            let btnSubmit = this.formEl.querySelector("[type=submit]");
+            btnSubmit.disable = true;
             let formValues = this.getValues();
-            
+            if(!formValues) return false
             //Chama a promise e executa o resolve ou reject com o .then.
             this.getPhoto().then(
                 //Arrow Function usadas para não perder o contexto do this.
                 (content)=>{
                     formValues.photo = content;
                     this.addLine(formValues);
+                    this.formEl.reset();
+                    btnSubmit.disable = false;
                 },
                 (e)=>{
                     console.error(e);
@@ -115,8 +131,15 @@ class UserController{
     getValues(){
 
         let user = {};
+        let isFormValid = true;
         //Tratando os elements como array[] e usando o Spread para detonatar todos os elementos.
         [...this.formEl.elements].forEach((field)=>{
+            
+            if(['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value){
+                field.parentElement.classList.add('has-error');
+                isFormValid = false;
+            }
+
             if(field.name =="gender"){
                 if(field.checked) user[field.name] = field.value;
             }
@@ -127,7 +150,9 @@ class UserController{
                 user[field.name] = field.value;
             }
         });
-    
+
+        if(!isFormValid) return false;
+
         return new User(
             user.name, 
             user.gender,
