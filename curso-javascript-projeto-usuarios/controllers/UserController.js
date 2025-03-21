@@ -47,14 +47,37 @@ class UserController{
         this.formEl.addEventListener("submit", (event)=>{
             
             event.preventDefault();
-            let values = this.getValues();
-            values.photo ="";
-            let user = this.getValues();
-
-            this.addLine(user)
-    
+            let formValues = this.getValues();
+            this.getPhoto((content)=>{
+                formValues.photo = content;
+                this.addLine(formValues);
+            });
+            
         });
 
+    }
+
+    /*
+        Relação de onSubmit e getPhoto.
+        Usuário submete o formulário ➝ onSubmit captura os valores do formulário.
+        O FileReader lê o arquivo e, quando termina, chama o callback.
+        O callback atualiza o objeto formValues com a imagem e adiciona os dados na interface.
+    */
+
+    getPhoto(callback){
+        let fileReader = new FileReader();
+        
+        let elements = [...this.formEl.elements].filter(item =>{
+            return (item.name =='photo') ? item : null;
+        });
+
+        let file = elements[0].files[0];
+
+        fileReader.onload = () =>{
+            callback(fileReader.result);
+        };
+
+        fileReader.readAsDataURL(file);
     }
 
     getValues(){
