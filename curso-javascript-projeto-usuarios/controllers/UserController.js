@@ -19,8 +19,10 @@ class UserController{
             Tags dinamicamente conforme a Método "addLine(dataUser)" é chamada(quando um novo usuário é criado após o click do 
             botão "submit" no formulário).
         */
-            let tr = document.createElement("tr");
-
+            let tr = document.createElement('tr');
+            //Serializando o dataset para JSON string no element tr.
+            tr.dataset.user = JSON.stringify(dataUser);
+            console.log(tr.dataset.user);
             tr.innerHTML = `
                 <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
                 <td>${dataUser.name}</td>
@@ -43,8 +45,14 @@ class UserController{
         let numberAdmin = 0; 
 
         [...this.tableEl.children].forEach(tr =>{
-            
+            numberUsers++;
+            let user = JSON.parse(tr.dataset.user);
+            //Por transformarmos o Objeto User para JSON, temos que pegar como está no JSON aqui, porque convertemos ele e está como _admin.
+            if(user._admin)  numberAdmin++;
         });
+
+        document.querySelector("#number-users").innerHTML = numberUsers;  
+        document.querySelector("#number-users-admin").innerHTML = numberAdmin;         
     }
 
     onSubmit(){
@@ -64,6 +72,7 @@ class UserController{
             let btnSubmit = this.formEl.querySelector("[type=submit]");
             btnSubmit.disable = true;
             let formValues = this.getValues();
+            
             if(!formValues) return false
             //Chama a promise e executa o resolve ou reject com o .then.
             this.getPhoto().then(
