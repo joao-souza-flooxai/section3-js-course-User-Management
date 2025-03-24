@@ -10,6 +10,7 @@ class UserController{
         this.tableEl = document.getElementById(tableId);
         this.onSubmit();
         this.onEditCancel();
+        this.selectAllLocalStorage();
     }
 
     onEditCancel(){
@@ -71,6 +72,31 @@ class UserController{
         } );
     }
 
+    getUsersStorage(){
+        let users = [];
+        
+        if(sessionStorage.getItem("users"))
+            users = JSON.parse(sessionStorage.getItem("users"));
+        return users;
+    }
+
+    selectAllLocalStorage(){
+        let users = this.getUsersStorage();
+        users.forEach(dataUser=>{
+            let user = new User();
+            user.loadFromJSON(dataUser);
+            console.log("chegou aqui");
+            this.addLine(user);
+        })
+    }
+
+    insertLocalStorage(dataUser){
+        
+       let users = this.getUsersStorage();
+       users.push(dataUser);
+       sessionStorage.setItem("users", JSON.stringify(users));
+    }
+
     /*
         Método para adicionar novas linhas a table "Lista de Usuários" dinamicamente.
     */
@@ -81,6 +107,8 @@ class UserController{
             botão "submit" no formulário).
         */
             let tr = document.createElement('tr');
+
+            
             //Serializando o dataset(simulando um bd) para JSON string no element tr.
             tr.dataset.user = JSON.stringify(dataUser);
             console.log(tr.dataset.user);
@@ -196,6 +224,7 @@ class UserController{
                 //Arrow Function usadas para não perder o contexto do this.
                 (content)=>{
                     formValues.photo = content;
+                    this.insertLocalStorage(formValues);
                     this.addLine(formValues);
                     this.formEl.reset();
                     btnSubmit.disable = false;
