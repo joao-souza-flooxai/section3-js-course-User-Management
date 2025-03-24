@@ -42,20 +42,14 @@ class UserController{
                         resultOldNewValues._photo = userOld._photo;
                     }
                     else resultOldNewValues._photo = content;
-                    tr.dataset.user = JSON.stringify(resultOldNewValues);
-                    tr.innerHTML = `
-                    <td><img src=
-                    "${resultOldNewValues._photo}" alt="User Image" class="img-circle img-sm"></td>
-                    <td>${resultOldNewValues._name}</td>
-                    <td>${resultOldNewValues._email}</td>
-                    <td>${(resultOldNewValues._admin) ? 'Yes': 'No'}</td>
-                    <td>${Utils.dateFormat(resultOldNewValues._register)}</td>
-                    <td>
-                        <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
-                        <button type="button" class="btn btn-danger btn-xs btn-flat">Excluir</button>
-                    </td>
-                    `;
-                    this.addEventsTr(tr);
+                    
+                    let user = new User();
+                    user.loadFromJSON(resultOldNewValues);
+
+                    user.save();
+
+                    tr = this.getTr(user,tr);
+                    
                     this.updateCount();
      
                     this.formElUpdate.reset();
@@ -72,29 +66,15 @@ class UserController{
         } );
     }
 
-    getUsersStorage(){
-        let users = [];
-        
-        if(sessionStorage.getItem("users"))
-            users = JSON.parse(sessionStorage.getItem("users"));
-        return users;
-    }
 
     selectAllLocalStorage(){
-        let users = this.getUsersStorage();
+        let users = User.getUsersStorage();
         users.forEach(dataUser=>{
             let user = new User();
             user.loadFromJSON(dataUser);
             console.log("chegou aqui");
             this.addLine(user);
         })
-    }
-
-    insertLocalStorage(dataUser){
-        
-       let users = this.getUsersStorage();
-       users.push(dataUser);
-       sessionStorage.setItem("users", JSON.stringify(users));
     }
 
     /*
@@ -106,37 +86,53 @@ class UserController{
             Tags dinamicamente conforme a Método "addLine(dataUser)" é chamada(quando um novo usuário é criado após o click do 
             botão "submit" no formulário).
         */
-            let tr = document.createElement('tr');
-
+            let tr = this.getTr(dataUser);
             
-            //Serializando o dataset(simulando um bd) para JSON string no element tr.
-            tr.dataset.user = JSON.stringify(dataUser);
+            
             console.log(tr.dataset.user);
-            tr.innerHTML = `
-                <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
-                <td>${dataUser.name}</td>
-                <td>${dataUser.email}</td>
-                <td>${(dataUser.admin) ? 'Yes': 'No'}</td>
-                <td>${Utils.dateFormat(dataUser.register)}</td>
-                <td>
-                    <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
-                    <button type="button" class="btn btn-danger btn-delete btn-xs btn-flat">Excluir</button>
-                </td>
-            `;
-
-            this.addEventsTr(tr);
-
+        
             this.tableEl.appendChild(tr);
             this.updateCount();
     }
 
+    getTr(dataUser, tr=null){
+        if(tr==null) tr = document.createElement('tr');
+        //Serializando o dataset(simulando um bd) para JSON string no element tr.
+        tr.dataset.user = JSON.stringify(dataUser);
+        tr.innerHTML = `
+            <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
+            <td>${dataUser.name}</td>
+            <td>${dataUser.email}</td>
+            <td>${(dataUser.admin) ? 'Yes': 'No'}</td>
+            <td>${Utils.dateFormat(dataUser.register)}</td>
+            <td>
+                <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
+                <button type="button" class="btn btn-danger btn-delete btn-xs btn-flat">Excluir</button>
+            </td>
+        `;
+
+        this.addEventsTr(tr);
+        return tr;
+    }
+
     addEventsTr(tr){
 
-        tr.querySelector(".btn-delete").addEventListener("click", e =>{
-            if(confirm("Deseja realmente excluir?")){
+        tr.querySelector(".btn-delete").addEventListener("click", e => {
+
+            if (confirm("Deseja realmente excluir?")) {
+
+                let user = new User();
+
+                user.loadFromJSON(JSON.parse(tr.dataset.user));
+
+                user.remove();
+
                 tr.remove();
+
                 this.updateCount();
-            } 
+
+            }
+
         });
 
         tr.querySelector(".btn-edit").addEventListener("click", e=>{
@@ -224,7 +220,7 @@ class UserController{
                 //Arrow Function usadas para não perder o contexto do this.
                 (content)=>{
                     formValues.photo = content;
-                    this.insertLocalStorage(formValues);
+                    formValues.save();
                     this.addLine(formValues);
                     this.formEl.reset();
                     btnSubmit.disable = false;
