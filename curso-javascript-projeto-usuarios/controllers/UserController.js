@@ -4,8 +4,9 @@ class UserController{
         com as quais é necessário manipular os elementos e gerar uma relação 
         entre si. 
     */
-    constructor(formId, tableId){
-        this.formEl = document.getElementById(formId);
+    constructor(formIdCreate, formIdUpdate, tableId){
+        this.formEl = document.getElementById(formIdCreate);
+        this.formElUpdate = document.getElementById(formIdUpdate);
         this.tableEl = document.getElementById(tableId);
         this.onSubmit();
         this.onEditCancel();
@@ -14,7 +15,60 @@ class UserController{
     onEditCancel(){
         document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e=>{
             this.showPanelCreate();
+
         });
+      
+
+        this.formElUpdate.addEventListener("submit", event=>{
+            event.preventDefault();
+            let btnSubmit = this.formElUpdate.querySelector("[type=submit]");
+            btnSubmit.disable = true;
+
+            let formValues = this.getValues(this.formElUpdate);
+            let rowIndex = this.formElUpdate.dataset.trIndex
+            let tr = this.tableEl.rows[rowIndex];
+            let userOld =  JSON.parse( tr.dataset.user);
+            //Mesclando o objeto antigo com o novo usando Object.assign.
+            let resultOldNewValues = Object.assign({}, userOld, formValues);
+           
+            this.getPhoto(this.formElUpdate).then(
+                //Arrow Function usadas para não perder o contexto do this.
+                (content)=>{
+                   
+                    if(!formValues.photo) 
+                    {
+                        console.log("não achou foto");
+                        resultOldNewValues._photo = userOld._photo;
+                    }
+                    else resultOldNewValues._photo = content;
+                    tr.dataset.user = JSON.stringify(resultOldNewValues);
+                    tr.innerHTML = `
+                    <td><img src=
+                    "${resultOldNewValues._photo}" alt="User Image" class="img-circle img-sm"></td>
+                    <td>${resultOldNewValues._name}</td>
+                    <td>${resultOldNewValues._email}</td>
+                    <td>${(resultOldNewValues._admin) ? 'Yes': 'No'}</td>
+                    <td>${Utils.dateFormat(resultOldNewValues._register)}</td>
+                    <td>
+                        <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
+                        <button type="button" class="btn btn-danger btn-xs btn-flat">Excluir</button>
+                    </td>
+                    `;
+                    this.addEventsTr(tr);
+                    this.updateCount();
+     
+                    this.formElUpdate.reset();
+                    btnSubmit.disable = false;
+                    this.showPanelCreate();
+                },
+                (e)=>{
+                    console.error(e);
+                }
+            );
+
+
+
+        } );
     }
 
     /*
@@ -42,13 +96,46 @@ class UserController{
                 </td>
             `;
 
-            tr.querySelector(".btn-edit").addEventListener("click", e=>{
-                JSON.parse(tr.dataset.user);
-                this.showPanelUpdate();
-            
-            });
+            this.addEventsTr(tr);
+
             this.tableEl.appendChild(tr);
             this.updateCount();
+    }
+
+    addEventsTr(tr){
+        tr.querySelector(".btn-edit").addEventListener("click", e=>{
+            let json = JSON.parse(tr.dataset.user);
+              this.formElUpdate.dataset.trIndex = tr.sectionRowIndex;
+            
+            for(let name in json){
+               let field = this.formElUpdate.querySelector("[name =" + name.replace("_","") +  "]");
+               if(field){
+
+                switch(field.type){
+                    case 'file':
+                    break;
+
+                    case'radio':
+                        field = this.formElUpdate.querySelector("[name =" + name.replace("_","") +  "][value =" + json[name] + "]");
+                        field.checked = true;
+                    break;
+
+                    case'checkbox':
+                        field.checked = json[name];
+                    break;
+
+                    default:
+                        field.value = json[name];
+                }
+
+               }
+
+            }
+            if(json._photo)
+                this.formElUpdate.querySelector(".photo").src = json._photo;
+            this.showPanelUpdate();
+        
+        });
     }
 
     showPanelCreate(){
@@ -93,11 +180,11 @@ class UserController{
 
             let btnSubmit = this.formEl.querySelector("[type=submit]");
             btnSubmit.disable = true;
-            let formValues = this.getValues();
+            let formValues = this.getValues(this.formEl);
             
             if(!formValues) return false
             //Chama a promise e executa o resolve ou reject com o .then.
-            this.getPhoto().then(
+            this.getPhoto(this.formEl).then(
                 //Arrow Function usadas para não perder o contexto do this.
                 (content)=>{
                     formValues.photo = content;
@@ -124,14 +211,14 @@ class UserController{
         que as funções esperam paramêtros iguais(content ou e), e as usam como assinatura.
     */
 
-    getPhoto(){
+    getPhoto(form){
 
         //Ao invés de fazer um callback, podemos executar usando Promise. Arrow Function usadas para não perder o contexto do this.
         return new Promise((resolve, reject)=>{
             //Instancica o objeto fileReader
             let fileReader = new FileReader();
             //Procura o elemento photo nos dados do formulário.
-            let elements = [...this.formEl.elements].filter(item =>{
+            let elements = [...form.elements].filter(item =>{
                 if(item.name =='photo') return item;    
             });
             /*
@@ -140,18 +227,18 @@ class UserController{
             */
             let file = elements[0].files[0];
 
-            if(file){
-                //Construindo
+      
+            fileReader.onload = () =>{
+                resolve(fileReader.result);
+            };
+
+            fileReader.onerror = (e) =>{
+                reject(e);
+            };
+
+            if(file)
                 fileReader.readAsDataURL(file);
-                //Se der certo, chama-se o resolve
-                fileReader.onload = () =>{
-                    resolve(fileReader.result);
-                };
-                //Se der errado, chama-se o reject
-                fileReader.onerror = (e) =>{
-                    reject(e);
-                };
-            }else 
+            else 
                 //Se não houver imagem(file == null) resolva com um place holder;
                 resolve('dist/img/boxed-bg.jpg');
             
@@ -159,12 +246,12 @@ class UserController{
 
     }
 
-    getValues(){
+    getValues(form){
 
         let user = {};
         let isFormValid = true;
         //Tratando os elements como array[] e usando o Spread para detonatar todos os elementos.
-        [...this.formEl.elements].forEach((field)=>{
+        [...form.elements].forEach((field)=>{
             
             if(['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value){
                 field.parentElement.classList.add('has-error');
@@ -185,13 +272,15 @@ class UserController{
         if(!isFormValid) return false;
 
         return new User(
-            user.name, 
+            user.name,
             user.gender,
-            user.birth, 
+            user.birth,
             user.country,
             user.email,
-            user.admin                      
-            );
+            user.password,
+            user.photo,
+            user.admin
+        );
 
     }
 }
